@@ -9,6 +9,7 @@ import { logError } from './utils/logger.js'
 import requestLogger from './middleware/request-logger.js'
 import rateLimit from './middleware/rate-limit.js'
 import { legacyRouter } from './routes/index.js'
+import { connectDB } from './db/config.js'
 
 const PORT = 3000;
 const app = express()
@@ -79,6 +80,13 @@ app.use((err, req, res, next) => {
     return res.status(statusCode).json({ error: err.message || 'Internal Server Error' })
 })
 
-app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`)
-})
+connectDB()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server started on port ${PORT}`)
+        })
+    })
+    .catch((err) => {
+        console.error('Failed to connect to MongoDB:', err.message)
+        process.exit(1)
+    })
