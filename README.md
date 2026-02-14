@@ -32,8 +32,39 @@ These scripts are configured to run on Windows, macOS, and Linux.
 
 ## Backend Endpoints
 - `GET /health` -> server + DB readiness state
-- `GET /cards` -> latest 100 saved cards
-- `POST /upload` (`multipart/form-data`, field name `file`) -> parses Anki-style TXT and saves cards
+- `GET /cards` -> paginated cards (`?deckId=<id>&page=1&limit=50&q=term&sourceFile=file.txt&sortBy=createdAt&sortOrder=desc`)
+- `PATCH /cards/:cardId` -> update card fields (`front`, `back`, `frontHtml`, `backHtml`)
+- `DELETE /cards/:cardId` -> delete a single card
+- `POST /upload` (`multipart/form-data`, field name `file`) -> parses Anki-style TXT, creates/fetches deck, and saves cards
+- `GET /decks` -> paginated decks (`?page=1&limit=50&q=biology&sortBy=name&sortOrder=asc`)
+- `POST /decks` -> create deck (or return existing by name)
+- `GET /decks/:deckId/cards` -> paginated cards for a specific deck
+- `DELETE /decks/:deckId` -> delete deck and cascade delete its cards
+
+Versioned API is also mounted at `/api/v1` with the same routes (for example `/api/v1/decks`).
+`/api/v1` responses use envelope policy:
+- Success: `{ "apiVersion": "v1", "data": { ... } }`
+- Error: `{ "apiVersion": "v1", "error": "message" }`
+
+## Verification
+1. Start backend in one terminal:
+   - `cd server`
+   - `npm run start`
+2. In another terminal run smoke test:
+   - `cd server`
+   - `npm run smoke`
+   - `npm run smoke:v1`
+   - `npm test` (integration tests)
+   - `npm run migrate` (schema/data migrations)
+
+## Auth (Local)
+- Write routes (`POST`, `PATCH`, `DELETE`) require API key auth.
+- Send header: `x-api-key: <LOCAL_API_KEY>` (or `Authorization: Bearer <LOCAL_API_KEY>`).
+
+## Guardrails
+- Rate limit is enabled (defaults: 120 requests/min per route+IP).
+- JSON/urlencoded payload limit: `1mb`.
+- Uploads only accept `.txt` files up to `2mb`.
 
 
 

@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "migrate": "node scripts/migrate.js",
+    "smoke": "node scripts/smoke-test.js",
+    "smoke:v1": "node scripts/smoke-test.js /api/v1",
+    "test": "node tests/integration.runner.js"
   },
   "keywords": [],
   "author": "",
