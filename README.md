@@ -19,6 +19,8 @@
 - ```npm start``` to start the electron app
 - ```npm run start:full``` to start frontend + backend + electron together
 
+These scripts are configured to run on Windows, macOS, and Linux.
+
 ## MongoDB Setup
 1. Copy `.env.example` to `.env` in the project root.
 2. Set `MONGODB_URI` (local example: `mongodb://127.0.0.1:27017/slammer`).
