@@ -68,7 +68,7 @@ export default function MissionPage() {
         <div className="mt-10">
           <PrimaryButton
             delay={1.2}
-            onClick={() => navigate("/study")}
+            onClick={() => navigate("/upload")}
           >
             Understood
           </PrimaryButton>
