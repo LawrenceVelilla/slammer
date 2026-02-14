@@ -1,5 +1,14 @@
 import { assessPunishmentTask, createPunishmentTask } from '../services/punishment-service.js';
 import reviewPolicy from '../config/review-policy.js';
+import openai from '../utils/openai.js';
+
+const grading_prompt = `You are a flashcard grading assistant. The user is studying with Anki cards.
+Given the question, the correct answer, and the user's answer, score the user's answer from 1 to 10.
+- 10 = perfect or essentially correct
+- 7-9 = mostly correct, minor issues
+- 4-6 = partially correct
+- 1-3 = mostly wrong
+Respond with ONLY a JSON object: { "score": <number>, "feedback": "<brief explanation>" }`;
 
 async function createPunishment(req, res) {
   const { question, expectedAnswer, upsetStage } = req.body || {};
@@ -38,7 +47,7 @@ async function gradeAnswer(req, res){
         messages: [
             {
                 role: "system",
-                content: grading_prmpt
+                content: grading_prompt
             },
             {
                 role: "user",

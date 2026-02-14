@@ -18,7 +18,7 @@ async function generateVoiceline(text, index) {
   const filename = `quote-${String(index).padStart(2, '0')}.mp3`
   const outPath = path.join(OUT_DIR, filename)
 
-  // Skip if already generated
+  // Skipping already ev
   if (fs.existsSync(outPath)) {
     console.log(`  Skipping ${filename} (already exists)`)
     return filename
