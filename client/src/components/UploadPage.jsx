@@ -28,6 +28,7 @@ export default function UploadPage() {
 
       const res = await fetch("http://localhost:3000/upload", {
         method: "POST",
+        headers: { "x-api-key": import.meta.env.VITE_API_KEY },
         body: formData,
       });
 
@@ -37,9 +38,9 @@ export default function UploadPage() {
       }
 
       const data = await res.json();
-      // Store cards in sessionStorage so the next pages can access them
-      sessionStorage.setItem("slammer-cards", JSON.stringify(data.cards));
-      sessionStorage.setItem("slammer-deck-name", file.name.replace(".txt", ""));
+      // Store deck info in localStorage so it persists across sessions
+      localStorage.setItem("slammer-deck-id", data.deckId);
+      localStorage.setItem("slammer-deck-name", data.deckName);
       navigate("/ready");
     } catch (err) {
       setError(err.message);

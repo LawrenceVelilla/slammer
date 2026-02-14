@@ -68,7 +68,10 @@ export default function MissionPage() {
         <div className="mt-10">
           <PrimaryButton
             delay={1.2}
-            onClick={() => navigate("/upload")}
+            onClick={() => {
+              const deckId = localStorage.getItem("slammer-deck-id");
+              navigate(deckId ? "/ready" : "/upload");
+            }}
           >
             Understood
           </PrimaryButton>
