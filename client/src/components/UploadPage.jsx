@@ -28,6 +28,7 @@ export default function UploadPage() {
 
       const res = await fetch("http://localhost:3000/upload", {
         method: "POST",
+        headers: {"x-api-key": import.meta.env.VITE_API_KEY},
         body: formData,
       });
 

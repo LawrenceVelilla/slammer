@@ -49,13 +49,6 @@ const store = multer.diskStorage({
         cb(null, file.originalname)
     }
 })
-const upload = multer({ storage: store })
-
-app.post('/upload', upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
-    const cards = parseAnkiCardTxt(req.file.path)
-    res.json({ total: cards.length, cards })
-})
 
 // List available decks in uploads/
 app.get('/decks', (req, res) => {
