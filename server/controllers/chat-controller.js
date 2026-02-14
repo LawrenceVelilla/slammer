@@ -37,6 +37,23 @@ function echoDestroy(req, res) {
   return res.json({ ok: true, echoed: 'destroy' });
 }
 
+function estimateTimeForCard(req, res) {
+  const { question, expectedAnswer } = req.body || {};
+  if (!question || !expectedAnswer) {
+    return res.status(400).json({ error: 'question and expectedAnswer are required' });
+  }
+
+  const qWords = String(question).trim().split(/\s+/).filter(Boolean).length;
+  const aWords = String(expectedAnswer).trim().split(/\s+/).filter(Boolean).length;
+
+  // Baseline 20s, then shift using combined prompt/answer length.
+  const baselineSeconds = 20;
+  const estimated = Math.round(baselineSeconds + qWords * 0.25 + aWords * 0.7);
+  const seconds = Math.max(10, Math.min(90, estimated));
+
+  return res.json({ seconds, baselineSeconds });
+}
+
 async function gradeAnswer(req, res) {
   const { question, expectedAnswer, userAnswer } = req.body;
 
@@ -64,4 +81,4 @@ async function gradeAnswer(req, res) {
   res.json(result);
 };
 
-export { createPunishment, assessPunishment, echoDestroy, gradeAnswer };
+export { createPunishment, assessPunishment, echoDestroy, estimateTimeForCard, gradeAnswer };

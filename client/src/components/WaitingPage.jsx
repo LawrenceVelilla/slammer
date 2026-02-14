@@ -6,6 +6,7 @@ import quotes from "../data/quotes";
 import { useSession } from "../context/SessionContext";
 
 const API_BASE = "http://localhost:3000";
+const VOICELINE_FALLBACK_MS = 20000;
 
 /* ── Animated Stopwatch SVG ──
    The hand position is computed each frame via requestAnimationFrame.
@@ -158,6 +159,7 @@ export default function WaitingPage() {
   const [error, setError] = useState("");
   const [voiceLineFinished, setVoiceLineFinished] = useState(false);
   const [cardReady, setCardReady] = useState(false);
+  const hasNavigatedRef = useRef(false);
 
   // Pick a random quote once on mount
   const quoteIndex = useMemo(() => Math.floor(Math.random() * quotes.length), []);
@@ -166,16 +168,34 @@ export default function WaitingPage() {
   // Play the matching voiceline on mount
   useEffect(() => {
     setVoiceLineFinished(false);
+    hasNavigatedRef.current = false;
     const audio = new Audio(
       `http://localhost:3000/voicelines/quote-${String(quoteIndex).padStart(2, "0")}.mp3`
     );
+    let fallbackId = null;
+
     const onEnded = () => setVoiceLineFinished(true);
+    const onError = () => {
+      // Avoid hanging if audio cannot be decoded.
+      if (!fallbackId) {
+        fallbackId = setTimeout(() => setVoiceLineFinished(true), VOICELINE_FALLBACK_MS);
+      }
+    };
+
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+
     audio.play().catch(() => {
-      setVoiceLineFinished(true);
+      // Autoplay blocked: keep waiting longer, then continue.
+      if (!fallbackId) {
+        fallbackId = setTimeout(() => setVoiceLineFinished(true), VOICELINE_FALLBACK_MS);
+      }
     });
+
     return () => {
+      if (fallbackId) clearTimeout(fallbackId);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
       audio.pause();
       audio.currentTime = 0;
     };
@@ -231,7 +251,8 @@ export default function WaitingPage() {
   }, [deckCards, deckId, setCurrentCard, setDeckCards]);
 
   useEffect(() => {
-    if (voiceLineFinished && cardReady) {
+    if (voiceLineFinished && cardReady && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
       navigate("/question");
     }
   }, [cardReady, navigate, voiceLineFinished]);

@@ -1,8 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import PrimaryButton from "./ui/PrimaryButton";
+import { useSession } from "../context/SessionContext";
+import { StrictMode } from "react";
 
 /* ── Stagger variants ── */
 const containerVariants = {
@@ -51,9 +53,15 @@ const droopTransition = {
   },
 };
 
+
 /* ── Component ── */
-export default function FailurePage({ strikesRemaining = 2 }) {
+export default function FailurePage() {
+  const strikesRemaining = useSession().catLives;
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showFeedback, setShowFeedback] = useState(false);
+  const feedback = location.state?.feedback || "No feedback returned.";
+  const score = location.state?.score;
 
   /* If the player has zero strikes left, redirect to the nuke route */
   useEffect(() => {
@@ -104,7 +112,7 @@ export default function FailurePage({ strikesRemaining = 2 }) {
           className="text-white text-xl sm:text-2xl md:text-3xl font-semibold text-center mt-8 sm:mt-10"
           variants={itemVariants}
         >
-          You have {strikesRemaining} strikes remaining
+          You have {strikesRemaining} {strikesRemaining == 1 ? 'strike' : 'strikes'} remaining
         </motion.p>
 
         {/* ── Buttons ── */}
@@ -119,7 +127,7 @@ export default function FailurePage({ strikesRemaining = 2 }) {
 
           {/* Show Feedback (outline style) */}
           <motion.button
-            onClick={() => {}}
+            onClick={() => setShowFeedback((prev) => !prev)}
             className="
               inline-flex items-center justify-center
               bg-transparent border border-white
@@ -135,6 +143,18 @@ export default function FailurePage({ strikesRemaining = 2 }) {
           >
             Show Feedback
           </motion.button>
+
+          {showFeedback ? (
+            <motion.div
+              className="max-w-2xl rounded-lg border border-white/20 bg-white/5 px-5 py-4 text-center"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              {typeof score === "number" ? <p className="text-white/70 text-sm">Score: {score}/10</p> : null}
+              <p className="text-white/90 text-sm mt-1">{feedback}</p>
+            </motion.div>
+          ) : null}
         </motion.div>
       </motion.div>
     </motion.div>

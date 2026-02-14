@@ -5,7 +5,7 @@ import BackgroundParticles from "./ui/BackgroundParticles";
 import AnimatedStopwatch from "./ui/AnimatedStopwatch";
 import { useSession } from "../context/SessionContext";
 
-const TOTAL_TIME = 20;  // this changes with card
+const DEFAULT_TIME = 20;
 const API_BASE = "http://localhost:3000";
 const CORRECT_SCORE_THRESHOLD = 4;
 
@@ -21,29 +21,29 @@ function getTimerColor(pct) {
   return "#ef4444";
 }
 
-function getCatSrc(catLives) {
-  if (catLives >= 3) return "/smirking-cat.svg";
-  if (catLives === 2) return "/concerned-cat.svg";
-  if (catLives === 1) return "/shocked-cat.svg";
-  return "/demonic-cat.svg";
+function getCatSrc(pct) {
+  if (pct >= 50) return "/smirking-cat.svg";
+  if (pct >= 25) return "/concerned-cat.svg";
+  return "/shocked-cat.svg";
 }
 
-function getCatAlt(catLives) {
-  if (catLives >= 3) return "Smirking cat";
-  if (catLives === 2) return "Concerned cat";
-  if (catLives === 1) return "Shocked cat";
-  return "Demonic cat";
+function getCatAlt(pct) {
+  if (pct >= 50) return "Smirking cat";
+  if (pct >= 25) return "Concerned cat";
+  return "Shocked cat";
 }
 
 export default function QuestionPage() {
-  const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
+  const [timeLimit, setTimeLimit] = useState(DEFAULT_TIME);
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_TIME);
   const [answer, setAnswer] = useState("");
   const [grading, setGrading] = useState(false);
   const [gradeResult, setGradeResult] = useState(null);
   const [error, setError] = useState("");
+  const timeoutHandledRef = useRef(false);
   const inputRef = useRef(null);
   const navigate = useNavigate();
-  const { currentCard, catLives, decrementCat } = useSession();
+  const { currentCard, decrementCat } = useSession();
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -55,10 +55,66 @@ export default function QuestionPage() {
     inputRef.current?.focus();
   }, []);
 
-  const percentage = (timeLeft / TOTAL_TIME) * 100;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTimeEstimate() {
+      if (!currentCard) {
+        setTimeLimit(DEFAULT_TIME);
+        setTimeLeft(DEFAULT_TIME);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/chat/time-estimate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: currentCard.front,
+            expectedAnswer: currentCard.back,
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Failed to estimate time");
+        const seconds = Number(payload.seconds) || DEFAULT_TIME;
+        if (!cancelled) {
+          setTimeLimit(seconds);
+          setTimeLeft(seconds);
+        }
+      } catch {
+        if (!cancelled) {
+          setTimeLimit(DEFAULT_TIME);
+          setTimeLeft(DEFAULT_TIME);
+        }
+      }
+    }
+
+    loadTimeEstimate();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentCard]);
+
+  useEffect(() => {
+    timeoutHandledRef.current = false;
+  }, [currentCard?._id, timeLimit]);
+
+  useEffect(() => {
+    if (timeLeft > 0 || grading || timeoutHandledRef.current) return;
+    timeoutHandledRef.current = true;
+    const timeoutFeedback = "Time ran out. Auto-failed.";
+    setGradeResult({ score: 0, feedback: timeoutFeedback });
+    setError("Time is up.");
+    decrementCat();
+    navigate("/failure", {
+      state: { feedback: timeoutFeedback, score: 0 },
+    });
+  }, [decrementCat, grading, navigate, timeLeft]);
+
+  const percentage = (timeLeft / timeLimit) * 100;
   const timerColor = getTimerColor(percentage);
-  const catSrc = getCatSrc(catLives);
-  const catAlt = getCatAlt(catLives);
+  const catSrc = getCatSrc(percentage);
+  const catAlt = getCatAlt(percentage);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -85,11 +141,16 @@ export default function QuestionPage() {
       setGradeResult(payload);
 
       if (Number(payload.score) >= CORRECT_SCORE_THRESHOLD) {
-        navigate("/success");
+        navigate("/success", {
+          state: { feedback: payload.feedback || "", score: Number(payload.score) || 0 },
+        });
         return;
       }
 
       decrementCat();
+      navigate("/failure", {
+        state: { feedback: payload.feedback || "", score: Number(payload.score) || 0 },
+      });
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -106,9 +167,7 @@ export default function QuestionPage() {
     >
       <BackgroundParticles />
 
-      {/* ── Foreground content (z-10) ── */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-4xl px-6 pt-10 sm:pt-16">
-        {/* ── Header Row: Title (center) + Timer (right) ── */}
         <div className="w-full flex items-center justify-center gap-6">
           <div className="w-36 sm:w-44 shrink-0 hidden sm:block" />
 
@@ -185,11 +244,6 @@ export default function QuestionPage() {
           <div className="mt-4 text-center">
             <p className="text-white/90 text-base">Score: {gradeResult.score}/10</p>
             <p className="text-white/70 text-sm mt-1">{gradeResult.feedback}</p>
-            {Number(gradeResult.score) < CORRECT_SCORE_THRESHOLD ? (
-              <p className="text-orange-300 text-xs mt-2">
-                Wrong-answer punishment path is pending. Cat state decremented.
-              </p>
-            ) : null}
           </div>
         ) : null}
 
@@ -209,27 +263,15 @@ export default function QuestionPage() {
           </AnimatePresence>
         </div>
 
-        {/* ── TODO: Temporary dev testing buttons ── */}
-        <div className="mt-8 flex gap-4">
-          <motion.button
-            onClick={() => navigate("/success")}
-            className="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors cursor-pointer"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.4 }}
-          >
-            ✅ Simulate Correct Answer
-          </motion.button>
-          <motion.button
-            onClick={() => navigate("/failure")}
-            className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-colors cursor-pointer"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.4 }}
-          >
-            ❌ Simulate Wrong Answer
-          </motion.button>
-        </div>
+        <motion.button
+          onClick={() => navigate("/waiting")}
+          className="mt-8 px-6 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-semibold text-sm transition-colors cursor-pointer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.4 }}
+        >
+          Back to Waiting
+        </motion.button>
       </div>
     </motion.div>
   );
