@@ -20,15 +20,16 @@ function extractJson(text) {
 async function runAiJson({ systemPrompt, userPrompt, model }) {
   if (!openai || !process.env.OPENAI_API_KEY) return null;
 
-  const response = await openai.responses.create({
+  const response = await openai.chat.completions.create({
     model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    input: [
+    messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
+    temperature: 0.3,
   });
 
-  return extractJson(response.output_text || '');
+  return extractJson(response.choices[0].message.content || '');
 }
 
 export { runAiJson };
