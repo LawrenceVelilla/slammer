@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import quotes from "../data/quotes";
@@ -149,6 +150,7 @@ const bounceTransition = {
 
 export default function WaitingPage() {
   const dots = useAnimatedEllipsis(600);
+  const navigate = useNavigate();
 
   // Pick a random quote once on mount
   const quoteIndex = useMemo(() => Math.floor(Math.random() * quotes.length), []);
@@ -159,7 +161,7 @@ export default function WaitingPage() {
     const audio = new Audio(
       `http://localhost:3000/voicelines/quote-${String(quoteIndex).padStart(2, "0")}.mp3`
     );
-    audio.play().catch(() => {}); // ignore autoplay restrictions
+    audio.play().catch(() => { }); // ignore autoplay restrictions
     return () => {
       audio.pause();
       audio.currentTime = 0;

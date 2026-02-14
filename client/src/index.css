@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-rubik-glitch: "Rubik Glitch", cursive;
   --color-charcoal: #18181b;
   --color-green-vivid: #00C853;
   --color-green-vivid-dark: #00a344;
@@ -9,6 +10,21 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* ── Glitch shake (used on GameOverPage text) ── */
+@keyframes glitch-shake {
+  0%, 86%   { transform: translate(0, 0); }
+  87%       { transform: translate(-2px, 1px); }
+  89%       { transform: translate(3px, -1px); }
+  91%       { transform: translate(-1px, 2px); }
+  93%       { transform: translate(2px, -1px); }
+  95%       { transform: translate(0, 0); }
+  100%      { transform: translate(0, 0); }
+}
+
+.animate-glitch-shake {
+  animation: glitch-shake 3s ease-in-out infinite;
 }
 
 body {
