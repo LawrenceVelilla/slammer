@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import PrimaryButton from "./ui/PrimaryButton";
 
@@ -30,6 +31,8 @@ const listItem = {
 };
 
 export default function MissionPage() {
+  const navigate = useNavigate();
+
   return (
     <div className="relative min-h-screen w-full bg-charcoal overflow-hidden flex flex-col items-center justify-center select-none">
       {/* ── Background particles (z-0) ── */}
@@ -65,7 +68,7 @@ export default function MissionPage() {
         <div className="mt-10">
           <PrimaryButton
             delay={1.2}
-            onClick={() => console.log("Navigate to dashboard")}
+            onClick={() => navigate("/study")}
           >
             Understood
           </PrimaryButton>
