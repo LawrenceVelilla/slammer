@@ -63,33 +63,52 @@ async function importCardsFromFile(file, deckNameInput, context = {}) {
     throw error;
   }
 
-  const deckResult = await createDeck({ name: deckName }, context);
-
-  const docsToInsert = parsedCards.map((card) => ({
+  const docsToInsert = parsedCards
+    .filter((card) => card?.front && card?.back && card?.frontHtml && card?.backHtml)
+    .map((card) => ({
     front: card.front,
     back: card.back,
     frontHtml: card.frontHtml,
     backHtml: card.backHtml,
     sourceFile: file.originalname,
-    deckId: deckResult.deck._id,
     deckName,
   }));
 
-  const inserted = await Card.insertMany(docsToInsert);
-  logAudit('cards.imported', {
-    requestId: context.requestId,
-    deckId: deckResult.deck._id.toString(),
-    deckName,
-    totalSaved: inserted.length,
-    sourceFile: file.originalname,
-  });
+  if (docsToInsert.length === 0) {
+    const error = new Error('No valid cards found in file');
+    error.statusCode = 400;
+    throw error;
+  }
 
-  return {
-    totalParsed: parsedCards.length,
-    totalSaved: inserted.length,
-    deckId: deckResult.deck._id,
-    deckName,
-  };
+  const deckResult = await createDeck({ name: deckName }, context);
+
+  try {
+    const payload = docsToInsert.map((card) => ({
+      ...card,
+      deckId: deckResult.deck._id,
+    }));
+    const inserted = await Card.insertMany(payload);
+    logAudit('cards.imported', {
+      requestId: context.requestId,
+      deckId: deckResult.deck._id.toString(),
+      deckName,
+      totalSaved: inserted.length,
+      sourceFile: file.originalname,
+    });
+
+    return {
+      totalParsed: parsedCards.length,
+      totalSaved: inserted.length,
+      deckId: deckResult.deck._id,
+      deckName,
+    };
+  } catch (error) {
+    // Avoid leaving an empty deck behind when creation happened in this import call.
+    if (deckResult.created) {
+      await Deck.deleteOne({ _id: deckResult.deck._id });
+    }
+    throw error;
+  }
 }
 
 async function updateCardById(cardId, updates, context = {}) {

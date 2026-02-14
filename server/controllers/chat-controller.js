@@ -10,7 +10,7 @@ Given the question, the correct answer, and the user's answer, score the user's 
 - 1-3 = mostly wrong
 
 
-Respond with ONLY a JSON object: { "score": <number>, "feedback": "<brief explanation>" }`;
+Respond with ONLY a JSON object: { "score": <number>, "feedback": "<brief explanation, and include the correct or acceptable answer>" }`;
 
 async function createPunishment(req, res) {
   const { question, expectedAnswer, upsetStage } = req.body || {};

@@ -217,7 +217,6 @@ export default function QuestionPage() {
               placeholder="Enter your answer here"
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
-              disabled={!currentCard || grading}
               className="
                 w-full rounded-full
                 bg-transparent text-zinc-900
@@ -232,7 +231,7 @@ export default function QuestionPage() {
           </div>
           <button
             type="submit"
-            disabled={!currentCard || grading || !answer.trim()}
+            disabled={grading || !answer.trim()}
             className="mt-4 px-6 py-2 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm transition-colors cursor-pointer"
           >
             {grading ? "Grading..." : "Submit Answer"}
@@ -263,15 +262,16 @@ export default function QuestionPage() {
           </AnimatePresence>
         </div>
 
-        <motion.button
-          onClick={() => navigate("/waiting")}
-          className="mt-8 px-6 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-semibold text-sm transition-colors cursor-pointer"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        {import.meta.env.VITE_DEBUG === "true" && (
+          <motion.button
+            onClick={() => navigate("/waiting")}
+            className="mt-8 px-6 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-semibold text-sm transition-colors cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           transition={{ delay: 0.8, duration: 0.4 }}
         >
           Back to Waiting
-        </motion.button>
+        </motion.button>)}
       </div>
     </motion.div>
   );
