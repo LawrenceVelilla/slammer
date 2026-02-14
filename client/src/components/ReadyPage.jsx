@@ -426,38 +426,6 @@ export default function ReadyPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Difficulty Selector ── */}
-        <motion.div
-          className="w-full flex justify-center mb-6"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <DifficultySelector
-            mode={mode}
-            setMode={setMode}
-            setShowExtremeWarning={setShowExtremeWarning}
-          />
-        </motion.div>
-
-        {/* ── Extreme mode active warning banner ── */}
-        <AnimatePresence>
-          {mode === "extreme" && (
-            <motion.div
-              className="w-full max-w-sm mb-4 px-4 py-2.5 rounded-lg bg-red-950/60 border border-red-800/60 flex items-center gap-2"
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <AlertTriangle size={16} className="text-red-400 shrink-0" />
-              <p className="text-red-300 text-xs font-semibold">
-                Extreme mode active &mdash; Strike 3 will delete your root folder.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <motion.div
           className="w-full max-w-sm mb-6"
           initial={{ opacity: 0, y: 20 }}

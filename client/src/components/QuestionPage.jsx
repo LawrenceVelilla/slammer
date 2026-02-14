@@ -43,7 +43,7 @@ export default function QuestionPage() {
   const timeoutHandledRef = useRef(false);
   const inputRef = useRef(null);
   const navigate = useNavigate();
-  const { currentCard, decrementCat } = useSession();
+  const { currentCard, catLives, decrementCat } = useSession();
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -105,11 +105,12 @@ export default function QuestionPage() {
     const timeoutFeedback = "Time ran out. Auto-failed.";
     setGradeResult({ score: 0, feedback: timeoutFeedback });
     setError("Time is up.");
+    const nextStrikesRemaining = Math.max(0, Number(catLives || 0) - 1);
     decrementCat();
     navigate("/failure", {
-      state: { feedback: timeoutFeedback, score: 0 },
+      state: { feedback: timeoutFeedback, score: 0, strikesRemaining: nextStrikesRemaining },
     });
-  }, [decrementCat, grading, navigate, timeLeft]);
+  }, [catLives, decrementCat, grading, navigate, timeLeft]);
 
   const percentage = (timeLeft / timeLimit) * 100;
   const timerColor = getTimerColor(percentage);
@@ -147,9 +148,14 @@ export default function QuestionPage() {
         return;
       }
 
+      const nextStrikesRemaining = Math.max(0, Number(catLives || 0) - 1);
       decrementCat();
       navigate("/failure", {
-        state: { feedback: payload.feedback || "", score: Number(payload.score) || 0 },
+        state: {
+          feedback: payload.feedback || "",
+          score: Number(payload.score) || 0,
+          strikesRemaining: nextStrikesRemaining,
+        },
       });
     } catch (submitError) {
       setError(submitError.message);

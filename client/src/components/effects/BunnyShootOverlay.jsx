@@ -103,10 +103,10 @@ export default function BunnyShootOverlay({ visible, onDone }) {
             alt="Shooter bunny"
             draggable={false}
             className="absolute w-56 sm:w-64 md:w-72 z-[10000]"
-            style={{ left: "5%", bottom: "15%" }}
-            initial={{ x: "-120%", opacity: 0 }}
+            style={{ right: "5%", bottom: "15%" }}
+            initial={{ x: "120%", opacity: 0 }}
             animate={{
-              x: phase === "exit" ? "-120%" : "0%",
+              x: phase === "exit" ? "120%" : "0%",
               opacity: phase === "exit" ? 0 : 1,
             }}
             transition={{
@@ -130,7 +130,7 @@ export default function BunnyShootOverlay({ visible, onDone }) {
             animate={{
               opacity: 1,
               scale: phase === "flash" ? 1.15 : 1,
-              rotate: phase === "dead" || phase === "exit" ? 8 : 0,
+              rotate: phase === "dead" || phase === "exit" ? -8 : 0,
               y: phase === "dead" || phase === "exit" ? 30 : 0,
             }}
             transition={{

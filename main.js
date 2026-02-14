@@ -195,7 +195,8 @@ ipcMain.handle('execute-punishment', async (_event, { level, mode = 'hard' }) =>
             // Frontend handles the bunny animation + loud bang sound
             return { executed: true, punishment: 'bunny-shot' }
         case 2:
-            closeAllWindows()
+            //closeAllWindows()
+            closeBrowserTabs()
             return { executed: true, punishment: 'all-windows-closed' }
         case 3:
             if (effectiveMode === 'extreme') {
