@@ -1,4 +1,5 @@
-.nvmrc
+﻿.nvmrc
 node_modules
 yarn-error.log
 .env
+server/BACKEND_CODEBASE_DOCUMENTATION.md
