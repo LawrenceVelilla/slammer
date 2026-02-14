@@ -6,7 +6,6 @@ import quotes from "../data/quotes";
 import { useSession } from "../context/SessionContext";
 
 const API_BASE = "http://localhost:3000";
-const QUESTION_WAIT_MS = 6000;
 
 /* ── Animated Stopwatch SVG ──
    The hand position is computed each frame via requestAnimationFrame.
@@ -157,6 +156,8 @@ export default function WaitingPage() {
   const navigate = useNavigate();
   const { deckId, setDeckId, deckCards, setDeckCards, setCurrentCard } = useSession();
   const [error, setError] = useState("");
+  const [voiceLineFinished, setVoiceLineFinished] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
 
   // Pick a random quote once on mount
   const quoteIndex = useMemo(() => Math.floor(Math.random() * quotes.length), []);
@@ -164,11 +165,17 @@ export default function WaitingPage() {
 
   // Play the matching voiceline on mount
   useEffect(() => {
+    setVoiceLineFinished(false);
     const audio = new Audio(
       `http://localhost:3000/voicelines/quote-${String(quoteIndex).padStart(2, "0")}.mp3`
     );
-    audio.play().catch(() => {}); // ignore autoplay restrictions
+    const onEnded = () => setVoiceLineFinished(true);
+    audio.addEventListener("ended", onEnded);
+    audio.play().catch(() => {
+      setVoiceLineFinished(true);
+    });
     return () => {
+      audio.removeEventListener("ended", onEnded);
       audio.pause();
       audio.currentTime = 0;
     };
@@ -182,7 +189,7 @@ export default function WaitingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    let timeoutId;
+    setCardReady(false);
 
     async function selectNextCard() {
       const activeDeckId = deckId || localStorage.getItem("slammer-deck-id") || "";
@@ -209,7 +216,7 @@ export default function WaitingPage() {
         const selected = cards[Math.floor(Math.random() * cards.length)];
         if (!cancelled) {
           setCurrentCard(selected);
-          timeoutId = setTimeout(() => navigate("/question"), QUESTION_WAIT_MS);
+          setCardReady(true);
         }
       } catch (loadError) {
         if (!cancelled) setError(loadError.message);
@@ -220,9 +227,14 @@ export default function WaitingPage() {
 
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [deckCards, deckId, navigate, setCurrentCard, setDeckCards]);
+  }, [deckCards, deckId, setCurrentCard, setDeckCards]);
+
+  useEffect(() => {
+    if (voiceLineFinished && cardReady) {
+      navigate("/question");
+    }
+  }, [cardReady, navigate, voiceLineFinished]);
 
   return (
     <motion.div
