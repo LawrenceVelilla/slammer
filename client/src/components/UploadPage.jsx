@@ -1,10 +1,73 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload } from "lucide-react";
+import { Upload, FileText, Loader2 } from "lucide-react";
 import BackgroundParticles from "./ui/BackgroundParticles";
 
 export default function UploadPage() {
   const [hovering, setHovering] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [fileName, setFileName] = useState(null);
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+
+  async function handleFile(file) {
+    if (!file || !file.name.endsWith(".txt")) {
+      setError("Please upload a .txt file");
+      return;
+    }
+
+    setFileName(file.name);
+    setError(null);
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("http://localhost:3000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
+
+      const data = await res.json();
+      // Store cards in sessionStorage so the next pages can access them
+      sessionStorage.setItem("slammer-cards", JSON.stringify(data.cards));
+      sessionStorage.setItem("slammer-deck-name", file.name.replace(".txt", ""));
+      navigate("/ready");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setHovering(false);
+    const file = e.dataTransfer.files[0];
+    handleFile(file);
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setHovering(true);
+  }
+
+  function handleClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleInputChange(e) {
+    const file = e.target.files[0];
+    handleFile(file);
+  }
 
   return (
     <motion.div
@@ -13,12 +76,9 @@ export default function UploadPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      {/* ── Background particles (z-0) ── */}
       <BackgroundParticles />
 
-      {/* ── Foreground content (z-10) ── */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-3xl px-6">
-        {/* ── Title ── */}
         <motion.h1
           className="text-white text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-center"
           initial={{ opacity: 0, y: 30 }}
@@ -27,6 +87,15 @@ export default function UploadPage() {
         >
           Upload Anki Flashcards
         </motion.h1>
+
+        {/* ── Hidden file input ── */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt"
+          className="hidden"
+          onChange={handleInputChange}
+        />
 
         {/* ── Dropzone ── */}
         <motion.div
@@ -50,8 +119,11 @@ export default function UploadPage() {
           }}
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setHovering(false)}
+          onClick={handleClick}
         >
-          {/* ── Upload icon ── */}
           <div
             className={`
               w-16 h-16 rounded-full border-2 flex items-center justify-center mb-6
@@ -63,18 +135,31 @@ export default function UploadPage() {
               }
             `}
           >
-            <Upload size={28} strokeWidth={2} />
+            {uploading ? (
+              <Loader2 size={28} strokeWidth={2} className="animate-spin" />
+            ) : fileName ? (
+              <FileText size={28} strokeWidth={2} />
+            ) : (
+              <Upload size={28} strokeWidth={2} />
+            )}
           </div>
 
-          {/* ── Instruction text ── */}
           <p
             className={`
               text-sm sm:text-base font-semibold text-center transition-colors duration-200
               ${hovering ? "text-green-400" : "text-white/80"}
             `}
           >
-            Drag & drop Anki .txt file here, or click to select file
+            {uploading
+              ? "Uploading..."
+              : fileName
+              ? fileName
+              : "Drag & drop Anki .txt file here, or click to select file"}
           </p>
+
+          {error && (
+            <p className="mt-4 text-red-400 text-sm font-medium">{error}</p>
+          )}
         </motion.div>
 
         {/* ── Gleeful Cat ── */}

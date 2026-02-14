@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
 import SlammerLanding from "./components/SlammerLanding";
 import MissionPage from "./components/MissionPage";
+import StudySession from "./components/StudySession";
 import UploadPage from "./components/UploadPage";
 import ReadyPage from "./components/ReadyPage";
 import WaitingPage from "./components/WaitingPage";
@@ -18,6 +19,7 @@ function App() {
         <Route path="/waiting" element={<WaitingPage />} />
         <Route path="/question" element={<QuestionPage />} />
         <Route path="/success" element={<SuccessPage />} />
+        <Route path="/study" element={<StudySession />} />
       </Routes>
     </HashRouter>
   );
