@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Upload, FileText, Loader2 } from "lucide-react";
 import BackgroundParticles from "./ui/BackgroundParticles";
+import { useSession } from "../context/SessionContext";
 
 export default function UploadPage() {
   const [hovering, setHovering] = useState(false);
@@ -11,6 +12,7 @@ export default function UploadPage() {
   const [fileName, setFileName] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const { setDeckId } = useSession();
 
   async function handleFile(file) {
     if (!file || !file.name.endsWith(".txt")) {
@@ -41,6 +43,7 @@ export default function UploadPage() {
       // Store deck info in localStorage so it persists across sessions
       localStorage.setItem("slammer-deck-id", data.deckId);
       localStorage.setItem("slammer-deck-name", data.deckName);
+      setDeckId(data.deckId || "");
       navigate("/ready");
     } catch (err) {
       setError(err.message);

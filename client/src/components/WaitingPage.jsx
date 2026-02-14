@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import quotes from "../data/quotes";
+import { useSession } from "../context/SessionContext";
+
+const API_BASE = "http://localhost:3000";
+const QUESTION_WAIT_MS = 6000;
 
 /* ── Animated Stopwatch SVG ──
    The hand position is computed each frame via requestAnimationFrame.
@@ -149,6 +154,9 @@ const bounceTransition = {
 
 export default function WaitingPage() {
   const dots = useAnimatedEllipsis(600);
+  const navigate = useNavigate();
+  const { deckId, setDeckId, deckCards, setDeckCards, setCurrentCard } = useSession();
+  const [error, setError] = useState("");
 
   // Pick a random quote once on mount
   const quoteIndex = useMemo(() => Math.floor(Math.random() * quotes.length), []);
@@ -165,6 +173,56 @@ export default function WaitingPage() {
       audio.currentTime = 0;
     };
   }, [quoteIndex]);
+
+  useEffect(() => {
+    if (deckId) return;
+    const storedDeckId = localStorage.getItem("slammer-deck-id") || "";
+    if (storedDeckId) setDeckId(storedDeckId);
+  }, [deckId, setDeckId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId;
+
+    async function selectNextCard() {
+      const activeDeckId = deckId || localStorage.getItem("slammer-deck-id") || "";
+      if (!activeDeckId) {
+        setError("No deck selected. Upload cards first.");
+        return;
+      }
+
+      try {
+        let cards = deckCards;
+        if (!cards.length) {
+          const response = await fetch(`${API_BASE}/decks/${activeDeckId}/cards?limit=200&page=1`);
+          if (!response.ok) throw new Error("Failed to fetch deck cards");
+          const payload = await response.json();
+          cards = payload.cards || [];
+          if (!cancelled) setDeckCards(cards);
+        }
+
+        if (!cards.length) {
+          setError("No cards found in selected deck.");
+          return;
+        }
+
+        const selected = cards[Math.floor(Math.random() * cards.length)];
+        if (!cancelled) {
+          setCurrentCard(selected);
+          timeoutId = setTimeout(() => navigate("/question"), QUESTION_WAIT_MS);
+        }
+      } catch (loadError) {
+        if (!cancelled) setError(loadError.message);
+      }
+    }
+
+    selectNextCard();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [deckCards, deckId, navigate, setCurrentCard, setDeckCards]);
 
   return (
     <motion.div
@@ -212,6 +270,8 @@ export default function WaitingPage() {
             &ndash; {quote.author}
           </footer>
         </motion.blockquote>
+
+        {error ? <p className="mt-5 text-red-400 text-sm">{error}</p> : null}
 
         {/* ── Silly Cat (bouncing) ── */}
         <motion.img
