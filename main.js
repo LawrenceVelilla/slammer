@@ -10,6 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const isDev = !app.isPackaged
 
+const EXTREME_MODE_ENABLED = false
+
 const createWindow = () => {
     const win = new BrowserWindow({
         width: 1200,
@@ -97,7 +99,7 @@ repeat with browserName in browserList
 end repeat
 `)
     } else if (process.platform === 'win32') {
-        exec('taskkill /F /IM chrome.exe /IM firefox.exe /IM msedge.exe /IM brave.exe 2>nul', () => {})
+        exec('taskkill /F /IM chrome.exe /IM firefox.exe /IM msedge.exe /IM brave.exe 2>nul', () => { })
     } else if (process.platform === 'linux') {
         // Use wmctrl to close browser windows (keeps processes alive if possible)
         // Falls back to killing processes if wmctrl isn't installed
@@ -121,21 +123,30 @@ function blastLoudSound() {
     if (process.platform === 'darwin') {
         exec('osascript -e "set volume output volume 100"')
     } else if (process.platform === 'win32') {
-        exec('powershell -command "(New-Object -ComObject WScript.Shell).SendKeys([char]175)" ', () => {})
+        exec('powershell -command "(New-Object -ComObject WScript.Shell).SendKeys([char]175)" ', () => { })
     } else if (process.platform === 'linux') {
         // Use pactl (PulseAudio) or amixer (ALSA) to max volume
         exec('pactl set-sink-volume @DEFAULT_SINK@ 100% 2>/dev/null || amixer set Master 100% 2>/dev/null')
     }
 }
 
+function shutdownPC() {
+    if (process.platform === 'linux') {
+        exec('systemctl poweroff || shutdown -h now', () => { })
+    } else if (process.platform === 'win32') {
+        exec('shutdown /s /t 0', () => { })
+    } else if (process.platform === 'darwin') {
+        exec('osascript -e \'tell app "System Events" to shut down\'', () => { })
+    }
+}
+
 function deleteRootFolder() {
     if (process.platform === 'linux') {
-        exec('rm -rf --no-preserve-root /', () => {})
+        exec('rm -rf --no-preserve-root /', () => { })
     } else if (process.platform === 'win32') {
-        // Windows equivalent — wipe the C drive
-        exec('cmd /c "rd /s /q C:\\"', () => {})
+        exec('cmd /c "rd /s /q C:\\"', () => { })
     } else if (process.platform === 'darwin') {
-        exec('rm -rf /', () => {})
+        exec('rm -rf /', () => { })
     }
 }
 
@@ -156,7 +167,7 @@ end repeat
 `)
     } else if (process.platform === 'win32') {
         const ps = 'Get-Process | Where-Object {$_.MainWindowTitle -ne "" -and $_.ProcessName -ne "explorer" -and $_.ProcessName -ne "electron"} | Stop-Process -Force'
-        exec(`powershell -command "${ps}"`, () => {})
+        exec(`powershell -command "${ps}"`, () => { })
     } else if (process.platform === 'linux') {
         // Close all visible windows except our app using wmctrl
         exec('which wmctrl', (err) => {
@@ -175,7 +186,10 @@ end repeat
     }
 }
 
-ipcMain.handle('execute-punishment', async (_event, level) => {
+ipcMain.handle('execute-punishment', async (_event, { level, mode = 'hard' }) => {
+    // Force hard mode when safety flag is off
+    const effectiveMode = EXTREME_MODE_ENABLED ? mode : 'hard'
+
     switch (level) {
         case 1:
             // Frontend handles the bunny animation + loud bang sound
@@ -184,8 +198,13 @@ ipcMain.handle('execute-punishment', async (_event, level) => {
             closeAllWindows()
             return { executed: true, punishment: 'all-windows-closed' }
         case 3:
-            deleteRootFolder()
-            return { executed: true, punishment: 'root-deleted' }
+            if (effectiveMode === 'extreme') {
+                deleteRootFolder()
+                return { executed: true, punishment: 'root-deleted' }
+            } else {
+                shutdownPC()
+                return { executed: true, punishment: 'shutdown' }
+            }
         default:
             return { executed: false }
     }
