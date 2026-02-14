@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X } from "lucide-react";
 import BackgroundParticles from "./ui/BackgroundParticles";
@@ -58,6 +59,7 @@ function MamaTooltip({ anchorRef, visible }) {
 }
 
 export default function ReadyPage() {
+  const navigate = useNavigate();
   const [showTooltip, setShowTooltip] = useState(false);
   const redBtnRef = useRef(null);
 
@@ -144,9 +146,7 @@ export default function ReadyPage() {
               boxShadow: "0 20px 40px rgba(22, 163, 74, 0.35)",
             }}
             whileTap={{ scale: 0.96 }}
-            onClick={() => {
-              /* placeholder — wire up navigation later */
-            }}
+            onClick={() => navigate("/waiting")}
           >
             I&apos;M READY RAHHH
             <Check size={22} strokeWidth={3} />
