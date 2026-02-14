@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import AnimatedStopwatch from "./ui/AnimatedStopwatch";
 
@@ -36,6 +37,7 @@ function getCatAlt(pct) {
 export default function QuestionPage() {
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
   const inputRef = useRef(null);
+  const navigate = useNavigate();
 
   /* ── Countdown ── */
   useEffect(() => {
@@ -143,6 +145,17 @@ export default function QuestionPage() {
             />
           </AnimatePresence>
         </div>
+
+        {/* ── TODO: Temporary "Correct Answer" button for dev testing ── */}
+        <motion.button
+          onClick={() => navigate("/success")}
+          className="mt-8 px-6 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors cursor-pointer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.4 }}
+        >
+          ✅ Simulate Correct Answer
+        </motion.button>
       </div>
     </motion.div>
   );
