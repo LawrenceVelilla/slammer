@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import BackgroundParticles from "./ui/BackgroundParticles";
@@ -53,6 +54,13 @@ const droopTransition = {
 /* ── Component ── */
 export default function FailurePage({ strikesRemaining = 2 }) {
   const navigate = useNavigate();
+
+  /* If the player has zero strikes left, redirect to the nuke route */
+  useEffect(() => {
+    if (strikesRemaining <= 0) {
+      navigate("/nuke", { replace: true });
+    }
+  }, [strikesRemaining, navigate]);
 
   return (
     <motion.div
