@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import confetti from "canvas-confetti";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import PrimaryButton from "./ui/PrimaryButton";
@@ -34,6 +34,9 @@ function fireConfetti() {
 /* ── Component ── */
 export default function SuccessPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const feedback = location.state?.feedback || "";
+  const score = location.state?.score;
 
   /* fire confetti once on mount */
   useEffect(() => {
@@ -75,6 +78,18 @@ export default function SuccessPage() {
         >
           You live to see another day
         </motion.p>
+
+        {feedback ? (
+          <motion.div
+            className="mt-6 max-w-2xl rounded-lg border border-white/20 bg-white/5 px-5 py-4 text-center"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {typeof score === "number" ? <p className="text-white/70 text-sm">Score: {score}/10</p> : null}
+            <p className="text-white/90 text-sm mt-1">{feedback}</p>
+          </motion.div>
+        ) : null}
 
         {/* ── Animated Happy Cat ──
              Outer div = entrance (scale spring, once).

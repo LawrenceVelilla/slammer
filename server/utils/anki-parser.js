@@ -34,7 +34,7 @@ function parseAnkiCardTxt(filePath) {
 
     // Strip the html tags
     const stripHtml = (html) =>
-      html
+      String(html || '')
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/&nbsp;/gi, ' ')
         .replace(/<[^>]*>/g, '')
@@ -44,12 +44,22 @@ function parseAnkiCardTxt(filePath) {
         .replace(/&quot;/gi, '"')
         .trim();
 
+    const plainFront = stripHtml(front);
+    const plainBack = stripHtml(back);
+    const htmlFront = String(front || '').trim();
+    const htmlBack = String(back || '').trim();
+
+    // Reject malformed or empty cards before they hit DB validation.
+    if (!plainFront || !plainBack || !htmlFront || !htmlBack) {
+      continue;
+    }
+
     cards.push({
       id: cards.length + 1,
-      front: stripHtml(front),
-      back: stripHtml(back),
-      frontHtml: front.trim(),
-      backHtml: back.trim(),
+      front: plainFront,
+      back: plainBack,
+      frontHtml: htmlFront,
+      backHtml: htmlBack,
     });
   }
 

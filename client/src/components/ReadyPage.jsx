@@ -2,10 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X } from "lucide-react";
+import { Check, X, ChevronDown, AlertTriangle, Skull } from "lucide-react";
 import BackgroundParticles from "./ui/BackgroundParticles";
+import { useSession } from "../context/SessionContext";
 
-/* ── Sinister "breathing" scale animation for the devious cat ── */
+const API_BASE = "http://localhost:3000";
+
 const plottingBreath = {
   scale: [1, 1.05, 1],
   rotate: [0, -1.5, 1.5, 0],
@@ -17,7 +19,22 @@ const plottingTransition = {
   ease: "easeInOut",
 };
 
-/* ── Tooltip rendered via portal so it escapes framer-motion layers ── */
+/* ── Mode config ── */
+const MODES = {
+  hard: {
+    label: "Hard",
+    description: "Strike 3 shuts down your PC.",
+    color: "text-orange-400",
+    bgHover: "hover:bg-orange-500/10",
+  },
+  extreme: {
+    label: "Extreme",
+    description: "Strike 3 deletes your root folder. Irreversible.",
+    color: "text-red-500",
+    bgHover: "hover:bg-red-500/10",
+  },
+};
+
 function MamaTooltip({ anchorRef, visible }) {
   const [pos, setPos] = useState({ top: 0, right: 0 });
 
@@ -49,7 +66,6 @@ function MamaTooltip({ anchorRef, visible }) {
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
           mama ain&apos;t raise no bitch
-          {/* ── Tiny arrow pointing down ── */}
           <span className="absolute -bottom-1.5 right-6 w-3 h-3 bg-zinc-700 border-b border-r border-zinc-600 rotate-45" />
         </motion.div>
       )}
@@ -58,12 +74,186 @@ function MamaTooltip({ anchorRef, visible }) {
   );
 }
 
+/* ── Extreme mode confirmation modal ── */
+function ExtremeWarningModal({ onConfirm, onCancel }) {
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.div
+          className="bg-zinc-900 border-2 border-red-600 rounded-2xl p-8 max-w-md mx-4 shadow-[0_0_60px_rgba(220,38,38,0.3)]"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        >
+          {/* Skull + warning icon */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Skull className="text-red-500" size={32} />
+            <AlertTriangle className="text-yellow-400" size={32} />
+            <Skull className="text-red-500" size={32} />
+          </div>
+
+          <h2 className="text-red-500 text-2xl font-black text-center uppercase tracking-wider mb-4">
+            Are you absolutely sure?
+          </h2>
+
+          <div className="space-y-3 text-sm leading-relaxed">
+            <p className="text-white/90 text-center">
+              Extreme mode will <span className="text-red-400 font-bold">permanently delete your entire root folder</span> on Strike 3. This is <span className="text-red-400 font-bold underline">not reversible</span>.
+            </p>
+
+            <div className="bg-red-950/50 border border-red-800 rounded-lg p-3 space-y-2">
+              <p className="text-red-300 font-semibold flex items-center gap-2">
+                <AlertTriangle size={16} /> This means:
+              </p>
+              <ul className="text-red-200/80 text-xs space-y-1 ml-6 list-disc">
+                <li>Your operating system will be destroyed</li>
+                <li>All files, programs, and data will be erased</li>
+                <li>Your computer will become unusable</li>
+                <li>There is no undo, no recovery, no going back</li>
+              </ul>
+            </div>
+
+            <p className="text-yellow-400/90 text-center text-xs font-semibold">
+              Only enable this if you are running in a virtual machine or truly do not care about this device.
+            </p>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 px-4 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-sm uppercase tracking-wide transition-colors cursor-pointer"
+            >
+              No, go back
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-3 px-4 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-sm uppercase tracking-wide transition-colors cursor-pointer border border-red-500"
+            >
+              I understand, enable it
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+/* ── Difficulty dropdown ── */
+function DifficultySelector({ mode, setMode, setShowExtremeWarning }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const currentMode = MODES[mode];
+
+  const handleSelect = (key) => {
+    if (key === "extreme" && mode !== "extreme") {
+      setShowExtremeWarning(true);
+    } else {
+      setMode(key);
+      localStorage.setItem("slammer-mode", key);
+    }
+    setOpen(false);
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative w-full max-w-xs">
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`
+          w-full flex items-center justify-between gap-2
+          px-4 py-3 rounded-lg
+          bg-zinc-800/80 border border-zinc-600
+          hover:border-zinc-500
+          text-left cursor-pointer
+          transition-colors duration-150
+        `}
+      >
+        <div>
+          <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">
+            Difficulty
+          </span>
+          <span className={`font-bold text-sm ${currentMode.color}`}>
+            {currentMode.label}
+          </span>
+        </div>
+        <ChevronDown
+          size={18}
+          className={`text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Dropdown menu */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-600 rounded-lg overflow-hidden shadow-xl z-50"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15 }}
+          >
+            {Object.entries(MODES).map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => handleSelect(key)}
+                className={`
+                  w-full text-left px-4 py-3
+                  ${cfg.bgHover}
+                  ${mode === key ? "bg-zinc-700/50" : ""}
+                  transition-colors duration-100 cursor-pointer
+                  border-b border-zinc-700 last:border-b-0
+                `}
+              >
+                <span className={`font-bold text-sm block ${cfg.color}`}>
+                  {key === "extreme" && <Skull size={14} className="inline mr-1.5 -mt-0.5" />}
+                  {cfg.label}
+                </span>
+                <span className="text-white/40 text-xs">{cfg.description}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function ReadyPage() {
   const navigate = useNavigate();
+  const { deckId, setDeckId, setDeckCards, setCurrentCard } = useSession();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showExtremeWarning, setShowExtremeWarning] = useState(false);
+  const [mode, setMode] = useState(
+    () => localStorage.getItem("slammer-mode") || "hard"
+  );
+  const [decks, setDecks] = useState([]);
+  const [loadingDecks, setLoadingDecks] = useState(true);
+  const [deletingDeck, setDeletingDeck] = useState(false);
+  const [deckError, setDeckError] = useState("");
   const redBtnRef = useRef(null);
 
-  /* Auto-dismiss the tooltip after 2.5s */
   useEffect(() => {
     if (!showTooltip) return;
     const timer = setTimeout(() => setShowTooltip(false), 2500);
@@ -74,6 +264,94 @@ export default function ReadyPage() {
     setShowTooltip(true);
   }, []);
 
+  const handleConfirmExtreme = useCallback(() => {
+    setMode("extreme");
+    localStorage.setItem("slammer-mode", "extreme");
+    setShowExtremeWarning(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDecks() {
+      setLoadingDecks(true);
+      setDeckError("");
+      try {
+        const response = await fetch(`${API_BASE}/decks?limit=200&page=1`);
+        if (!response.ok) throw new Error("Failed to load decks");
+        const payload = await response.json();
+        const list = payload.decks || [];
+        if (cancelled) return;
+
+        setDecks(list);
+
+        const persistedDeckId = deckId || localStorage.getItem("slammer-deck-id") || "";
+        const hasPersisted = list.some((item) => item._id === persistedDeckId);
+        const nextDeckId = hasPersisted ? persistedDeckId : list[0]?._id || "";
+
+        if (nextDeckId) {
+          setDeckId(nextDeckId);
+          localStorage.setItem("slammer-deck-id", nextDeckId);
+        }
+      } catch (error) {
+        if (!cancelled) setDeckError(error.message);
+      } finally {
+        if (!cancelled) setLoadingDecks(false);
+      }
+    }
+
+    loadDecks();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId, setDeckId]);
+
+  function handleDeckChange(event) {
+    const nextDeckId = event.target.value;
+    setDeckId(nextDeckId);
+    setDeckCards([]);
+    setCurrentCard(null);
+    localStorage.setItem("slammer-deck-id", nextDeckId);
+  }
+
+  async function handleDeleteDeck() {
+    if (!deckId || deletingDeck) return;
+    const deletedIndex = decks.findIndex((deck) => deck._id === deckId);
+    const activeDeck = decks.find((deck) => deck._id === deckId);
+    const name = activeDeck?.name || "this deck";
+    const ok = window.confirm(`Delete "${name}" and all its cards?`);
+    if (!ok) return;
+
+    setDeletingDeck(true);
+    setDeckError("");
+    try {
+      const response = await fetch(`${API_BASE}/decks/${deckId}`, {
+        method: "DELETE",
+        headers: { "x-api-key": import.meta.env.VITE_API_KEY || "" },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Failed to delete deck");
+
+      const remaining = decks.filter((deck) => deck._id !== deckId);
+      setDecks(remaining);
+      setDeckCards([]);
+      setCurrentCard(null);
+
+      const nextIndex = Math.min(deletedIndex, Math.max(remaining.length - 1, 0));
+      const nextDeckId = remaining[nextIndex]?._id || "";
+      setDeckId(nextDeckId);
+      if (nextDeckId) {
+        localStorage.setItem("slammer-deck-id", nextDeckId);
+      } else {
+        localStorage.removeItem("slammer-deck-id");
+      }
+    } catch (error) {
+      setDeckError(error.message);
+    } finally {
+      setDeletingDeck(false);
+    }
+  }
+
   return (
     <motion.div
       className="relative min-h-screen w-full bg-charcoal overflow-hidden flex flex-col items-center justify-center select-none"
@@ -81,12 +359,9 @@ export default function ReadyPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      {/* ── Background particles (z-0) ── */}
       <BackgroundParticles />
 
-      {/* ── Foreground content (z-10) ── */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-xl px-6">
-        {/* ── Title ── */}
         <motion.h1
           className="text-white text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-center"
           initial={{ opacity: 0, y: 30 }}
@@ -96,12 +371,11 @@ export default function ReadyPage() {
           Ready to be Slammed?
         </motion.h1>
 
-        {/* ── Devious Cat ── */}
         <motion.img
           src="/devious-cat.svg"
           alt="Devious cat"
           draggable={false}
-          className="w-52 sm:w-60 md:w-72 mt-12 mb-10"
+          className="w-52 sm:w-60 md:w-72 mt-12 mb-6"
           initial={{ opacity: 0, scale: 0 }}
           animate={{
             opacity: 1,
@@ -120,9 +394,68 @@ export default function ReadyPage() {
           }}
         />
 
-        {/* ── Buttons Stack ── */}
+        {/* ── Difficulty Selector ── */}
+        <motion.div
+          className="w-full flex justify-center mb-6"
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <DifficultySelector
+            mode={mode}
+            setMode={setMode}
+            setShowExtremeWarning={setShowExtremeWarning}
+          />
+        </motion.div>
+
+        {/* ── Extreme mode active warning banner ── */}
+        <AnimatePresence>
+          {mode === "extreme" && (
+            <motion.div
+              className="w-full max-w-sm mb-4 px-4 py-2.5 rounded-lg bg-red-950/60 border border-red-800/60 flex items-center gap-2"
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AlertTriangle size={16} className="text-red-400 shrink-0" />
+              <p className="text-red-300 text-xs font-semibold">
+                Extreme mode active &mdash; Strike 3 will delete your root folder.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          className="w-full max-w-sm mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <label htmlFor="deck-select" className="block text-white/80 text-sm mb-2">
+            Choose Deck
+          </label>
+          <select
+            id="deck-select"
+            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-3 outline-none ring-1 ring-white/15 focus:ring-2 focus:ring-green-500"
+            value={deckId}
+            onChange={handleDeckChange}
+            disabled={loadingDecks || decks.length === 0}
+          >
+            {decks.map((deck) => (
+              <option key={deck._id} value={deck._id}>
+                {deck.name}
+              </option>
+            ))}
+          </select>
+          {loadingDecks ? <p className="mt-2 text-xs text-white/60">Loading decks...</p> : null}
+          {deckError ? <p className="mt-2 text-xs text-red-400">{deckError}</p> : null}
+          {!loadingDecks && decks.length === 0 ? (
+            <p className="mt-2 text-xs text-yellow-300">No decks found. Upload one first.</p>
+          ) : null}
+        </motion.div>
+
         <div className="flex flex-col items-center gap-6 w-full max-w-sm">
-          {/* ── Green Confirm Button ── */}
           <motion.button
             className="
               relative inline-flex items-center justify-center gap-2.5
@@ -146,13 +479,64 @@ export default function ReadyPage() {
               boxShadow: "0 20px 40px rgba(22, 163, 74, 0.35)",
             }}
             whileTap={{ scale: 0.96 }}
+            disabled={decks.length === 0}
+            style={{ opacity: decks.length === 0 ? 0.6 : 1 }}
             onClick={() => navigate("/waiting")}
           >
             I&apos;M READY RAHHH
             <Check size={22} strokeWidth={3} />
           </motion.button>
 
-          {/* ── Red/Orange Cancel Button ── */}
+          <motion.button
+            className="
+              relative inline-flex items-center justify-center gap-2.5
+              bg-transparent border border-white/40 hover:bg-white/10
+              text-white font-bold text-lg tracking-wide uppercase
+              w-full py-4 px-8
+              rounded-lg cursor-pointer
+              transition-colors duration-200
+              outline-none
+            "
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              delay: 0.8,
+              duration: 0.6,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/upload")}
+          >
+            Upload Another Deck
+          </motion.button>
+
+          <motion.button
+            className="
+              relative inline-flex items-center justify-center gap-2.5
+              bg-transparent border border-red-400/60 hover:bg-red-500/10
+              text-red-200 font-bold text-lg tracking-wide uppercase
+              w-full py-4 px-8
+              rounded-lg cursor-pointer
+              transition-colors duration-200
+              outline-none
+            "
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              delay: 0.85,
+              duration: 0.6,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            disabled={!deckId || deletingDeck}
+            style={{ opacity: !deckId || deletingDeck ? 0.6 : 1 }}
+            onClick={handleDeleteDeck}
+          >
+            {deletingDeck ? "Deleting Deck..." : "Delete Selected Deck"}
+          </motion.button>
+
           <motion.button
             ref={redBtnRef}
             className="
@@ -185,8 +569,15 @@ export default function ReadyPage() {
         </div>
       </div>
 
-      {/* ── "Mama" Tooltip (portal to body) ── */}
       <MamaTooltip anchorRef={redBtnRef} visible={showTooltip} />
+
+      {/* ── Extreme mode confirmation modal ── */}
+      {showExtremeWarning && (
+        <ExtremeWarningModal
+          onConfirm={handleConfirmExtreme}
+          onCancel={() => setShowExtremeWarning(false)}
+        />
+      )}
     </motion.div>
   );
 }
