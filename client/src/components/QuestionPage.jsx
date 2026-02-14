@@ -106,7 +106,9 @@ export default function QuestionPage() {
     >
       <BackgroundParticles />
 
-      <div className="mt-12 relative z-10 flex flex-col items-center w-full max-w-4xl px-6 pt-10 sm:pt-16">
+      {/* ── Foreground content (z-10) ── */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-4xl px-6 pt-10 sm:pt-16">
+        {/* ── Header Row: Title (center) + Timer (right) ── */}
         <div className="w-full flex items-center justify-center gap-6">
           <div className="w-36 sm:w-44 shrink-0 hidden sm:block" />
 
@@ -207,15 +209,27 @@ export default function QuestionPage() {
           </AnimatePresence>
         </div>
 
-        <motion.button
-          onClick={() => navigate("/waiting")}
-          className="mt-8 px-6 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-semibold text-sm transition-colors cursor-pointer"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.4 }}
-        >
-          Back to Waiting
-        </motion.button>
+        {/* ── TODO: Temporary dev testing buttons ── */}
+        <div className="mt-8 flex gap-4">
+          <motion.button
+            onClick={() => navigate("/success")}
+            className="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.4 }}
+          >
+            ✅ Simulate Correct Answer
+          </motion.button>
+          <motion.button
+            onClick={() => navigate("/failure")}
+            className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-colors cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.4 }}
+          >
+            ❌ Simulate Wrong Answer
+          </motion.button>
+        </div>
       </div>
     </motion.div>
   );
