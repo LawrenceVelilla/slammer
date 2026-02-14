@@ -1,0 +1,14 @@
+{
+  "name": "slammer",
+  "main": "main.js",
+  "scripts": {
+    "start": "concurrently \"npm run dev:client\" \"npm run dev:electron\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:electron": "sleep 3 && electron .",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^40.4.1"
+  }
+}
