@@ -20,7 +20,6 @@ app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 app.use(express.static('public'))
 
-  app.use('/api/v1', versionedResponse('v1'), apiV1Router);
   app.use(legacyRouter);
 
   app.use((err, req, res, next) => {
