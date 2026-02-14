@@ -74,6 +74,13 @@ export default function FailurePage() {
   );
 
   useEffect(() => {
+    if (strikesRemaining <= 0) {
+      navigate("/nuke", { state: { strikeNumber }, replace: true });
+      return;
+    }
+  }, [strikesRemaining, strikeNumber, navigate]);
+
+  useEffect(() => {
     if (effectStartedRef.current) return;
     effectStartedRef.current = true;
     setPunishmentResolved(false);

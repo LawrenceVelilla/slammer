@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import MatrixRain from "./effects/MatrixRain";
 
 /* ── Entrance helper — each item fades + slides up with a stagger delay ── */
@@ -36,7 +38,44 @@ const glowTransition = {
   },
 };
 
+const COUNTDOWN_SECONDS = 5;
+
 export default function GameOverPage() {
+  const location = useLocation();
+  const strikeNumber = location.state?.strikeNumber ?? 3;
+
+  const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+  const [punishmentDone, setPunishmentDone] = useState(false);
+  const [punishmentError, setPunishmentError] = useState("");
+  const punishmentRan = useRef(false);
+
+  /* ── Countdown tick ── */
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft]);
+
+  /* ── Execute punishment when countdown expires ── */
+  useEffect(() => {
+    if (secondsLeft > 0 || punishmentRan.current) return;
+    punishmentRan.current = true;
+
+    async function run() {
+      try {
+        if (window.slammer?.executePunishment) {
+          await window.slammer.executePunishment(strikeNumber, "hard");
+        }
+      } catch (error) {
+        setPunishmentError(error?.message || "Punishment execution failed.");
+      } finally {
+        setPunishmentDone(true);
+      }
+    }
+
+    run();
+  }, [secondsLeft, strikeNumber]);
+
   return (
     <div className="relative min-h-screen w-full bg-charcoal overflow-hidden flex items-center justify-center select-none">
       {/* ── Matrix Rain — Left ── */}
@@ -87,6 +126,51 @@ export default function GameOverPage() {
         >
           will your life flash before your eyes?
         </motion.p>
+
+        {/* ── Countdown Timer ── */}
+        <motion.div
+          className="mt-8 sm:mt-10 flex flex-col items-center"
+          {...entrance(0.35)}
+        >
+          {secondsLeft > 0 ? (
+            <motion.span
+              key={secondsLeft}
+              className="font-rubik-glitch text-red-500 text-6xl sm:text-7xl md:text-8xl tabular-nums"
+              style={{
+                textShadow:
+                  "0 0 12px rgba(220, 38, 38, 0.8), 0 0 40px rgba(220, 38, 38, 0.5), 0 0 80px rgba(220, 38, 38, 0.3)",
+              }}
+              initial={{ scale: 1.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+              {secondsLeft}
+            </motion.span>
+          ) : (
+            <motion.span
+              className="font-rubik-glitch text-red-600 text-3xl sm:text-4xl md:text-5xl"
+              style={{
+                textShadow:
+                  "0 0 12px rgba(220, 38, 38, 0.8), 0 0 40px rgba(220, 38, 38, 0.5)",
+              }}
+              initial={{ scale: 1.3, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {punishmentDone ? (punishmentError ? "Error" : "Executed") : "Executing..."}
+            </motion.span>
+          )}
+
+          {punishmentError && punishmentDone ? (
+            <motion.p
+              className="text-red-400 text-sm mt-3 text-center max-w-md"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {punishmentError}
+            </motion.p>
+          ) : null}
+        </motion.div>
 
         {/* ── Demonic cat with glow ── */}
         <motion.div className="relative mt-10 sm:mt-14" {...entrance(0.5)}>
