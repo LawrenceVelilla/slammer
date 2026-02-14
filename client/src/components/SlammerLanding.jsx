@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import BackgroundParticles from "./ui/BackgroundParticles";
 import PrimaryButton from "./ui/PrimaryButton";
 
@@ -52,6 +53,8 @@ function FloatingCat({
 }
 
 export default function SlammerLanding() {
+  const navigate = useNavigate();
+
   return (
     <div className="relative min-h-screen w-full bg-charcoal overflow-hidden flex items-center justify-center select-none">
       {/* ── Background particles (z-0) ── */}
@@ -111,7 +114,9 @@ export default function SlammerLanding() {
 
           {/* ── Button ── */}
           <div className="mt-8">
-            <PrimaryButton delay={0.45}>Commence</PrimaryButton>
+            <PrimaryButton delay={0.45} onClick={() => navigate("/mission")}>
+              Commence
+            </PrimaryButton>
           </div>
 
           {/* ── Happy Cat — Bottom Center ── */}
