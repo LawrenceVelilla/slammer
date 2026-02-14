@@ -6,6 +6,7 @@ import ReadyPage from "./components/ReadyPage";
 import WaitingPage from "./components/WaitingPage";
 import QuestionPage from "./components/QuestionPage";
 import SuccessPage from "./components/SuccessPage";
+import FailurePage from "./components/FailurePage";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/waiting" element={<WaitingPage />} />
         <Route path="/question" element={<QuestionPage />} />
         <Route path="/success" element={<SuccessPage />} />
+        <Route path="/failure" element={<FailurePage />} />
       </Routes>
     </HashRouter>
   );
