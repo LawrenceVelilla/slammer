@@ -1,29 +1,134 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { exec, execSync } from 'child_process'
+import { exec, execSync, fork } from 'child_process'
 import fs from 'fs'
 import os from 'os'
 import { app, BrowserWindow, ipcMain } from 'electron'
+import http from 'http'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-
 const isDev = !app.isPackaged
 
-const getAppIconPath = () => {
+const EXTREME_MODE_ENABLED = false
+
+/* ── Server management ── */
+let serverProcess = null
+const SERVER_PORT = 3000
+
+function getServerPath() {
     if (isDev) {
-        return path.join(__dirname, 'client', 'public', 'icon.svg')
+        return path.join(__dirname, 'server', 'app.js')
     }
-    return path.join(__dirname, 'client', 'dist', 'icon.svg')
+    // In production, server files are in the resources/server folder
+    return path.join(process.resourcesPath, 'server', 'app.js')
 }
 
-const EXTREME_MODE_ENABLED = false
+function getServerEnvPath() {
+    if (isDev) {
+        return path.join(__dirname, 'server', '.env')
+    }
+    // In production, look for .env in the server resources folder first,
+    // then fall back to the app's userData folder (user-configurable)
+    const resourceEnv = path.join(process.resourcesPath, 'server', '.env')
+    const userDataEnv = path.join(app.getPath('userData'), '.env')
+    if (fs.existsSync(userDataEnv)) return userDataEnv
+    if (fs.existsSync(resourceEnv)) return resourceEnv
+    return null
+}
+
+function startServer() {
+    return new Promise((resolve, reject) => {
+        const serverPath = getServerPath()
+        const envPath = getServerEnvPath()
+
+        console.log(`Starting server from: ${serverPath}`)
+
+        // Build environment variables for the server process
+        const serverEnv = { ...process.env }
+
+        // Load .env file manually so the server process gets the vars
+        if (envPath && fs.existsSync(envPath)) {
+            console.log(`Loading env from: ${envPath}`)
+            const envContent = fs.readFileSync(envPath, 'utf-8')
+            for (const line of envContent.split('\n')) {
+                const trimmed = line.trim()
+                if (!trimmed || trimmed.startsWith('#')) continue
+                const eqIdx = trimmed.indexOf('=')
+                if (eqIdx === -1) continue
+                const key = trimmed.slice(0, eqIdx).trim()
+                const value = trimmed.slice(eqIdx + 1).trim()
+                serverEnv[key] = value
+            }
+        }
+
+        // Set the server's cwd so relative paths (like 'public/') resolve correctly
+        const serverDir = path.dirname(serverPath)
+
+        serverProcess = fork(serverPath, [], {
+            cwd: serverDir,
+            env: serverEnv,
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        })
+
+        serverProcess.stdout.on('data', (data) => {
+            console.log(`[server] ${data.toString().trim()}`)
+        })
+
+        serverProcess.stderr.on('data', (data) => {
+            console.error(`[server] ${data.toString().trim()}`)
+        })
+
+        serverProcess.on('error', (err) => {
+            console.error('Failed to start server:', err)
+            reject(err)
+        })
+
+        serverProcess.on('exit', (code) => {
+            console.log(`Server process exited with code ${code}`)
+            serverProcess = null
+        })
+
+        // Poll the health endpoint until the server is ready
+        let attempts = 0
+        const maxAttempts = 30
+        const checkReady = () => {
+            attempts++
+            http.get(`http://127.0.0.1:${SERVER_PORT}/health`, (res) => {
+                if (res.statusCode === 200) {
+                    console.log('Server is ready!')
+                    resolve()
+                } else if (attempts < maxAttempts) {
+                    setTimeout(checkReady, 500)
+                } else {
+                    reject(new Error('Server did not become ready in time'))
+                }
+            }).on('error', () => {
+                if (attempts < maxAttempts) {
+                    setTimeout(checkReady, 500)
+                } else {
+                    reject(new Error('Server did not start in time'))
+                }
+            })
+        }
+
+        // Give the server a moment to start before polling
+        setTimeout(checkReady, 500)
+    })
+}
+
+function stopServer() {
+    if (serverProcess) {
+        console.log('Stopping server...')
+        serverProcess.kill()
+        serverProcess = null
+    }
+}
 
 const createWindow = () => {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: getAppIconPath(),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -221,7 +326,18 @@ ipcMain.handle('execute-punishment', async (_event, { level, mode = 'hard' }) =>
 
 /* ── App Lifecycle ── */
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+    try {
+        // Start the Express server (both dev and production)
+        // In dev, you can still use `npm run dev:server` separately if you prefer
+        if (!isDev || !process.env.SKIP_SERVER) {
+            await startServer()
+        }
+    } catch (err) {
+        console.error('Failed to start backend server:', err.message)
+        // Continue anyway — the app can show an error state
+    }
+
     createWindow()
 
     app.on('activate', () => {
@@ -235,4 +351,8 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit()
     }
+})
+
+app.on('will-quit', () => {
+    stopServer()
 })

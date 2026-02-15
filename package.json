@@ -1,20 +1,59 @@
 {
   "name": "slammer",
+  "version": "1.0.0",
+  "description": "Slammer - Study flashcards or face the consequences",
+  "author": "LawrenceVelilla",
   "main": "main.js",
+  "type": "module",
   "scripts": {
     "start": "concurrently -k \"npm run dev:client\" \"npm run dev:electron\"",
     "start:full": "concurrently -k \"npm run dev:client\" \"npm run dev:server\" \"npm run dev:electron\"",
     "dev:client": "npm --prefix ./client run dev",
     "dev:server": "npm --prefix ./server run dev",
     "dev:electron": "wait-on http://localhost:5173/ && electron .",
-    "build": "npm --prefix ./client run build"
+    "build": "npm --prefix ./client run build",
+    "predist": "npm run build && cd server && npm install --omit=dev",
+    "dist": "electron-builder",
+    "dist:win": "npm run predist && electron-builder --win",
+    "dist:mac": "npm run predist && electron-builder --mac",
+    "dist:linux": "npm run predist && electron-builder --linux"
   },
-  "devDependencies": {
-    "concurrently": "^9.1.2",
-    "electron": "^40.4.1",
-    "wait-on": "^8.0.5"
-  },
-  "dependencies": {
-    "openai": "^6.22.0"
+  "build": {
+    "appId": "com.slammer.app",
+    "productName": "Slammer",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "package.json",
+      "client/dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!tests/**",
+          "!uploads/**",
+          "!scripts/**",
+          "!.env",
+          "!.env.example"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "./icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "./icon.png"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
