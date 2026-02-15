@@ -10,12 +10,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const isDev = !app.isPackaged
 
+const getAppIconPath = () => {
+    if (isDev) {
+        return path.join(__dirname, 'client', 'public', 'icon.svg')
+    }
+    return path.join(__dirname, 'client', 'dist', 'icon.svg')
+}
+
 const EXTREME_MODE_ENABLED = false
 
 const createWindow = () => {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
+        icon: getAppIconPath(),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
